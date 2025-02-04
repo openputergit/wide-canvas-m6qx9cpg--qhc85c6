@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodVision - Discover What You Eat!</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+        .gradient-text {
+            background: linear-gradient(90deg, #FF6B6B 0%, #4ECDC4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .loading {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #FF6B6B;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app" class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <i class="bi bi-camera text-3xl text-orange-500 mr-2"></i>
+                        <span class="font-bold text-xl text-gray-800">FoodVision</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="text-center">
+                <h1 class="text-4xl md:text-5xl font-bold mb-4 gradient-text">Discover What You Eat!</h1>
+                <p class="text-gray-600 text-lg mb-8">Upload or capture a food image to learn about its ingredients, calories, and more.</p>
+                
+                <div class="flex flex-col sm:flex-row justify-center gap-4 mb-8">
+                    <label class="flex items-center justify-center px-6 py-3 border border-orange-500 rounded-lg cursor-pointer hover:bg-orange-50 transition-colors">
+                        <i class="bi bi-upload text-xl text-orange-500 mr-2"></i>
+                        <span class="text-orange-500 font-medium">Upload Image</span>
+                        <input type="file" class="hidden" @change="handleImageUpload" accept="image/*">
+                    </label>
+                    <button @click="startCamera" class="flex items-center justify-center px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                        <i class="bi bi-camera-fill mr-2"></i>
+                        <span>Capture from Camera</span>
+                    </button>
+                </div>
+
+                <div v-if="showCamera" class="max-w-md mx-auto mb-8">
+                    <video ref="video" class="w-full rounded-lg"></video>
+                    <button @click="captureImage" class="mt-4 px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                        <i class="bi bi-camera-fill mr-2"></i>Take Photo
+                    </button>
+                </div>
+
+                <div v-if="imagePreview" class="max-w-md mx-auto relative">
+                    <img :src="imagePreview" class="w-full rounded-lg shadow-md" alt="Food preview">
+                    <button @click="analyzeImage" class="mt-4 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors" :disabled="isAnalyzing">
+                        <span v-if="!isAnalyzing">Analyze Image</span>
+                        <div v-else class="loading mx-auto"></div>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works -->
+        <section class="bg-white py-16">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 class="text-3xl font-bold text-center mb-12">How It Works</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="text-center">
+                        <div class="flex justify-center mb-4">
+                            <i class="bi bi-upload text-4xl text-orange-500"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold mb-2">Upload or Capture</h3>
+                        <p class="text-gray-600">Take a photo or upload an image of any food item</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="flex justify-center mb-4">
+                            <i class="bi bi-magic text-4xl text-orange-500"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold mb-2">AI Analysis</h3>
+                        <p class="text-gray-600">Our AI identifies the dish instantly</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="flex justify-center mb-4">
+                            <i class="bi bi-clipboard-data text-4xl text-orange-500"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold mb-2">Get Insights</h3>
+                        <p class="text-gray-600">View detailed nutritional information</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section v-if="results" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-4">{{results.name}}</h2>
+                <p class="text-gray-600 mb-6">{{results.description}}</p>
+                
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-orange-50 p-4 rounded-lg">
+                        <div class="text-orange-500 font-semibold">Calories</div>
+                        <div class="text-2xl font-bold">{{results.nutrition.calories}}</div>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <div class="text-blue-500 font-semibold">Carbs</div>
+                        <div class="text-2xl font-bold">{{results.nutrition.carbs}}</div>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <div class="text-green-500 font-semibold">Protein</div>
+                        <div class="text-2xl font-bold">{{results.nutrition.protein}}</div>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <div class="text-purple-500 font-semibold">Fat</div>
+                        <div class="text-2xl font-bold">{{results.nutrition.fat}}</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Additional Features -->
+        <section class="bg-gray-50 py-16">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 class="text-3xl font-bold text-center mb-12">Additional Features</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="flex items-center mb-4">
+                            <i class="bi bi-book text-2xl text-orange-500 mr-3"></i>
+                            <h3 class="text-xl font-semibold">Recipe Suggestions</h3>
+                        </div>
+                        <p class="text-gray-600">Get detailed recipes and cooking instructions for identified dishes</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="flex items-center mb-4">
+                            <i class="bi bi-calculator text-2xl text-orange-500 mr-3"></i>
+                            <h3 class="text-xl font-semibold">Nutritional Calculator</h3>
+                        </div>
+                        <p class="text-gray-600">Track your daily calorie intake and nutritional goals</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="bg-gray-800 text-white py-12">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">About FoodVision</h3>
+                        <p class="text-gray-400">Helping you make informed decisions about your food choices</p>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Quick Links</h3>
+                        <ul class="space-y-2">
+                            <li><a href="#" class="text-gray-400 hover:text-white">About Us</a></li>
+                            <li><a href="#" class="text-gray-400 hover:text-white">Privacy Policy</a></li>
+                            <li><a href="#" class="text-gray-400 hover:text-white">Contact Us</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Follow Us</h3>
+                        <div class="flex space-x-4">
+                            <a href="#" class="text-gray-400 hover:text-white"><i class="bi bi-facebook"></i></a>
+                            <a href="#" class="text-gray-400 hover:text-white"><i class="bi bi-twitter"></i></a>
+                            <a href="#" class="text-gray-400 hover:text-white"><i class="bi bi-instagram"></i></a>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Newsletter</h3>
+                        <div class="flex">
+                            <input type="email" placeholder="Enter your email" class="px-4 py-2 rounded-l-lg w-full text-gray-800">
+                            <button class="bg-orange-500 px-4 py-2 rounded-r-lg hover:bg-orange-600">
+                                <i class="bi bi-send"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const { createApp } = Vue
+
+        createApp({
+            data() {
+                return {
+                    imagePreview: null,
+                    showCamera: false,
+                    isAnalyzing: false,
+                    results: null,
+                    stream: null
+                }
+            },
+            methods: {
+                handleImageUpload(event) {
+                    const file = event.target.files[0]
+                    if (file) {
+                        const reader = new FileReader()
+                        reader.onload = (e) => {
+                            this.imagePreview = e.target.result
+                            this.results = null
+                        }
+                        reader.readAsDataURL(file)
+                    }
+                },
+                async startCamera() {
+                    try {
+                        this.stream = await navigator.mediaDevices.getUserMedia({ video: true })
+                        this.showCamera = true
+                        this.$nextTick(() => {
+                            this.$refs.video.srcObject = this.stream
+                            this.$refs.video.play()
+                        })
+                    } catch (err) {
+                        console.error('Error accessing camera:', err)
+                        alert('Unable to access camera')
+                    }
+                },
+                captureImage() {
+                    const canvas = document.createElement('canvas')
+                    canvas.width = this.$refs.video.videoWidth
+                    canvas.height = this.$refs.video.videoHeight
+                    canvas.getContext('2d').drawImage(this.$refs.video, 0, 0)
+                    this.imagePreview = canvas.toDataURL('image/jpeg')
+                    this.showCamera = false
+                    this.stopCamera()
+                },
+                stopCamera() {
+                    if (this.stream) {
+                        this.stream.getTracks().forEach(track => track.stop())
+                        this.stream = null
+                    }
+                },
+                async analyzeImage() {
+                    this.isAnalyzing = true
+                    try {
+                        // Simulating API call
+                        await new Promise(resolve => setTimeout(resolve, 2000))
+                        this.results = {
+                            name: "Pizza Margherita",
+                            description: "A classic Italian pizza topped with tomatoes, mozzarella cheese, fresh basil, salt, and extra-virgin olive oil.",
+                            nutrition: {
+                                calories: "285 kcal",
+                                carbs: "36g",
+                                protein: "12g",
+                                fat: "10g"
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error analyzing image:', error)
+                        alert('Error analyzing image. Please try again.')
+                    } finally {
+                        this.isAnalyzing = false
+                    }
+                }
+            },
+            beforeUnmount() {
+                this.stopCamera()
+            }
+        }).mount('#app')
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
